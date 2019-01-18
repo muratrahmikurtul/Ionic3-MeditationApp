@@ -1,37 +1,117 @@
-import { Component } from '@angular/core';
-import { NavController, NavParams } from 'ionic-angular';
+import {Component} from '@angular/core';
+import {NavController, NavParams, ToastController, Platform} from 'ionic-angular';
+import {VeritabaniProvider} from "../../providers/veritabani";
 
 @Component({
-  selector: 'page-list',
-  templateUrl: 'list.html'
+    selector: 'page-list',
+    templateUrl: 'list.html'
 })
 export class ListPage {
-  selectedItem: any;
-  icons: string[];
-  items: Array<{title: string, note: string, icon: string}>;
 
-  constructor(public navCtrl: NavController, public navParams: NavParams) {
-    // If we navigated to this page, we will have an item available as a nav param
-    this.selectedItem = navParams.get('item');
+    meditasyon: any;
+    data:any;
 
-    // Let's populate this page with some filler content for funzies
-    this.icons = ['flask', 'wifi', 'beer', 'football', 'basketball', 'paper-plane',
-    'american-football', 'boat', 'bluetooth', 'build'];
+    sure: number;
+    anlik: number;
 
-    this.items = [];
-    for (let i = 1; i < 11; i++) {
-      this.items.push({
-        title: 'Item ' + i,
-        note: 'This is item #' + i,
-        icon: this.icons[Math.floor(Math.random() * this.icons.length)]
-      });
+    toplamSure: string = "00:00";
+    anlikSure: string = "00:00";
+
+    isPlay:boolean = false;
+
+    player = new Audio();
+
+    artirmaSayisi: number;
+
+    constructor(public navCtrl: NavController,
+                public navParams: NavParams,
+                private veritabani: VeritabaniProvider,
+                private toastKontrol: ToastController,
+                private platform: Platform) {
+        // If we navigated to this page, we will have an item available as a nav param
+        this.meditasyon = navParams.get('meditasyon');
+
+        this.veritabani.veritabaDurumu().subscribe(hzr => {
+            if (hzr) {
+                this.meditasyonuGetir(this.meditasyon.sira);
+            }
+        })
+
     }
-  }
 
-  itemTapped(event, item) {
-    // That's right, we're pushing to ourselves!
-    this.navCtrl.push(ListPage, {
-      item: item
-    });
-  }
+    meditasyonuGetir(sira) {
+        this.veritabani.birDataGetir(sira).then( cvp => {
+            this.data = cvp;
+            console.log(cvp);
+        })
+    }
+
+    favorilereEkle(sira) {
+        this.veritabani.favoriGuncelle(sira, "1");
+        this.meditasyonuGetir(sira);
+        this.toastYap("Favorilerinize eklendi")
+    }
+
+    favorilerdenCikar(sira) {
+        this.veritabani.favoriGuncelle(sira, "0");
+        this.meditasyonuGetir(sira);
+        this.toastYap("Favorilerinizden çıkarıldı")
+    }
+
+    toastYap (msg) {
+        let toast = this.toastKontrol.create({
+            message: msg,
+            duration: 2000,
+            position: 'top'
+        });
+        toast.present()
+    }
+
+    ionViewDidLoad() {
+        this.player.src = "http://mistikyol.com/mistikmobil/audios/" + this.meditasyon.sesdosyasi;
+    }
+
+    playPause () {
+        if (this.isPlay) {
+            this.player.pause();
+            this.isPlay = false;
+        } else {
+            this.player.play();
+            this.isPlay = true;
+        }
+
+        this.timerBaslat();
+        if (this.player.readyState > 0) {
+            this.sure = this.player.duration;
+            if (this.sure < 19589.733875) {
+                this.toplamSure = this.formatTime(this.player.duration);
+            }
+        }
+    }
+
+    formatTime (ms: number): string {
+        let dakika: any = Math.floor(ms / 60);
+        let saniye: any = Math.floor(ms % 60);
+
+        if (dakika < 10) {
+            dakika = '0' + dakika
+        }
+
+        if (saniye < 10) {
+            saniye = '0' + saniye
+        }
+
+        return dakika + ':' + saniye
+    }
+
+    timerBaslat () {
+        this.artirmaSayisi = setInterval(() => {
+            this.anlikSureyiGetir()
+        }, 1000)
+    }
+
+    anlikSureyiGetir () {
+        this.anlik = this.player.currentTime;
+        this.anlikSure = this.formatTime(this.player.currentTime);
+    }
 }
